@@ -1,7 +1,7 @@
-#include <Adafruit_ADS1X15.h>
-#include <Wire.h>
 #include <BfButton.h>
 #include <BfButtonManager.h>
+#include <Adafruit_ADS1X15.h>
+#include <Wire.h>
 
 Adafruit_ADS1115 ads1115;
 
@@ -15,7 +15,6 @@ class ADS
 };
 void ADS::ADS_setup()
 {
-  Serial.begin(9600);
   Serial.println("Hello!");
   Serial.println("Getting single-ended readings from AIN0..3");
   ads1115.begin();
@@ -27,10 +26,7 @@ void ADS::ADS_setup()
 void ADS::ADS_loop()
 {
   //입력 신호의 데이터를 저장할 변수를 선언합니다.
-
-
   //각 채널의 입력 신호를 읽고 변수에 저장합니다.
-
   adc0 = ads1115.readADC_SingleEnded(0);
   adc1 = ads1115.readADC_SingleEnded(1);
   adc2 = ads1115.readADC_SingleEnded(2);
@@ -59,15 +55,14 @@ void ADS::ADS_loop()
   //Serial.print("AIN5: "); Serial.println(adc5);
   //Serial.print("AIN6: "); Serial.println(adc6);
   //Serial.print("AIN7: "); Serial.println(adc7);
-  delay(2000);
+  // delay(2000);
 }
 
 
 int Min;
 int Max;
-int D5 = 5; //D5번 핀을 사용 (SW)
-int D4 = 3; //D4번 핀을 사용 (DT)
-int D3 = 4; //D3번 핀을 사용 (CLK)
+const int D5 = 5; //D5번 핀을 사용 (SW)
+
 int counter = 0; //rotary 회전 시 바뀜 (0~500까지의 값 설정)
 
 BfButton btn(BfButton::STANDALONE_DIGITAL, D5, true, LOW);
@@ -80,14 +75,14 @@ void pressHandler(BfButton* btn, BfButton::press_pattern_t pattern)
       Serial.println("Single push");
       Min = counter;
       Serial.print("Min : ");
-      Serial.println(Min);
+      Serial.println(int(Min));
       break;
 
     case BfButton::DOUBLE_PRESS: //max 저장
       Serial.println("Double push");
       Max = counter;
       Serial.print("Max : ");
-      Serial.println(Max);
+      Serial.println(int(Max));
       break;
 
     case BfButton::LONG_PRESS:
@@ -102,8 +97,8 @@ class rotary
 {
   public:
     int angle = 0;
-    int aState;
-    int aLastState;
+    int aState = 0;
+    int aLastState = 0;
     void rotary_setup();
     void rotary_loop();
 };
@@ -111,21 +106,25 @@ class rotary
 
 void rotary::rotary_setup()
 {
-  Serial.begin(9600);
-  Serial.println(angle);
-  pinMode(D3, INPUT_PULLUP);
-  pinMode(D4, INPUT_PULLUP);
-  aLastState = digitalRead(D3);
 
-  btn.onPress(pressHandler)
-  .onDoublePress(pressHandler)
-  .onPressFor(pressHandler, 1000);
+  //  Serial.println(angle);
+  //  pinMode(D3, INPUT_PULLUP);
+  //  pinMode(D4, INPUT_PULLUP);
+  //  aLastState = digitalRead(D3);
+  //
+  //  btn.onPress(pressHandler)
+  //  .onDoublePress(pressHandler)
+  //  .onPressFor(pressHandler, 1000);
 }
 void rotary::rotary_loop()
 {
+  int D4 = 3; //D4번 핀을 사용 (DT)
+  int D3 = 4; //D3번 핀을 사용 (CLK)
   btn.read();
   aState = digitalRead(D3);
-
+  delay(1000);
+  Serial.println(String(aState) + "," + String(counter) + "," + String(angle));
+  Serial.println(String(D3) + "," + String(D4));
   if (aState != aLastState)
   {
     if (digitalRead(D4) != aState)
@@ -154,55 +153,76 @@ void rotary::rotary_loop()
 rotary myro; //rotary class 객체 선언
 ADS A; //ADS class 객체 선언
 
+void pin()
+{
+  pinMode(14, OUTPUT); //CH1 알람
+  pinMode(15, OUTPUT); //CH2 알람
+  pinMode(16, OUTPUT); //CH3 알람
+  pinMode(17, OUTPUT); //CH4 알람
+}
+
 //compare 함수
 void compare()
 {
-  if (A.adc0 * 0.1875 / 1000 * 100 < Min || A.adc0 * 0.1875 / 1000 * 100 > Max)
+  int AIN0_V = A.adc0 * 0.1875 / 1000 * 100;
+  int AIN1_V = A.adc1 * 0.1875 / 1000 * 100;
+  int AIN2_V = A.adc2 * 0.1875 / 1000 * 100;
+  int AIN3_V = A.adc3 * 0.1875 / 1000 * 100;
+  /*
+    Serial.println(AIN0_V);
+    Serial.println(AIN1_V);
+    Serial.println(AIN2_V);
+    Serial.println(AIN3_V);
+    delay(5000);
+  */
+  if (AIN0_V < Min || AIN0_V > Max && AIN1_V == 500 && AIN2_V == 500 && AIN3_V == 500)
   {
-    pinMode(14, OUTPUT);
     digitalWrite(14, HIGH); //CH1 알람 울려라
-    delay(1000);
+    // delay(1000);
   }
-  if (A.adc1 * 0.1875 / 1000 * 100 < Min || A.adc1 * 0.1875 / 1000 * 100 > Max)
+  if (AIN1_V < Min || AIN1_V > Max && AIN0_V == 500 && AIN2_V == 500 && AIN3_V == 500)
   {
-    pinMode(15, OUTPUT);
     digitalWrite(15, HIGH); //CH2 알람 울려라
-    delay(1000);
+    // delay(1000);
   }
-  if (A.adc2 * 0.1875 / 1000 * 100 < Min || A.adc2 * 0.1875 / 1000 * 100 > Max)
+
+  if (AIN2_V < Min || AIN2_V > Max && AIN0_V == 500 && AIN1_V == 500 && AIN3_V == 500)
   {
-    pinMode(16, OUTPUT);
-    digitalWrite(16, HIGH); //CH3 알람 울려라
-    delay(1000);
-    pinMode(29, INPUT);
-    SwitchState = digitalRead(29);
-    if (SwitchState == HIGH)
-    {
-      digitalWrite(16, LOW);
-      digitalWrite(29, LOW);
-      break;
-    }
+    //Serial.println("CH3 알람 울림");
+    //digitalWrite(16, HIGH); //CH3 알람 울려라
+    //delay(1000);
+    //pinMode(29, INPUT);
+    //SwitchState = digitalRead(29);
+    //if (SwitchState == HIGH)
+    //{
+    //  digitalWrite(16, LOW);
+    // digitalWrite(29, LOW);
+    //  break;
+    //}
   }
-  if (A.adc3 * 0.1875 / 1000 * 100 < Min || A.adc3 * 0.1875 / 1000 * 100 > Max)
+
+  if (AIN3_V < Min || AIN3_V > Max && AIN0_V == 500 && AIN1_V == 500 && AIN2_V == 500)
   {
-    pinMode(17, OUTPUT);
-    digitalWrite(17, HIGH); //CH4 알람 울려라
-    delay(1000);
+
+    digitalWrite(17, HIGH); //CH4 알람 울려라8
+    //delay(1000);
   }
+
 }
+
 
 void setup()
 {
   Serial.begin(9600);
   myro.rotary_setup();
   A.ADS_setup();
-  A.ADS_loop();
+  //pin();
   Serial.println(A.adc2 * 0.1875 / 1000 * 100);
-  delay(5000);
 }
 
 void loop()
 {
+  A.ADS_loop();
   myro.rotary_loop();
-  compare();
+  // compare();
 }

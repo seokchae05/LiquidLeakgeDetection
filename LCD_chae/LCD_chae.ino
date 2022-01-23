@@ -1,3 +1,5 @@
+#include <LiquidCrystal_I2C.h>
+
 /*
   LiquidCrystal Library - Hello World
 
@@ -40,9 +42,7 @@
 // include the library code:
 #include <LiquidCrystal.h>
 
-// initialize the library with the numbers of the interface pins
-LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
-
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 int maxNum = 0;
 int minNum = 0;
@@ -59,7 +59,7 @@ bool btnStatus = true;
 
 void setup() {
   // set up the LCD's number of columns and rows:
-  lcd.begin(16, 2);
+  lcd.begin();
   // Print a message to the LCD.
   lcd.print("DaHa Systems");
   lcd.setCursor(0, 1);
@@ -113,5 +113,3 @@ void loop() {
   }*/
   
 }
-
-
