@@ -10,7 +10,7 @@ int Max = 1;
 int D5 = 5; //D5번 핀을 사용 (SW)
 int D4 = 3; //D4번 핀을 사용 (DT)
 int D3 = 4; //D3번 핀을 사용 (CLK)
-int counter = 0; //rotary 회전 시 바뀜 (0~500까지의 값 설정)
+int counter = 1; //rotary 회전 시 바뀜 (0~500까지의 값 설정)
 
 BfButton btn(BfButton::STANDALONE_DIGITAL, D5, true, LOW);
 
@@ -34,7 +34,7 @@ void pressHandler(BfButton* btn, BfButton::press_pattern_t pattern)
 
     case BfButton::LONG_PRESS:
       Serial.println("Long push");
-      counter = 0;
+      counter = 1;
       Serial.println(counter);
       break;
   }
@@ -52,6 +52,24 @@ class rotary
     void rotary_loop();
 };
 
+//counter LCD 출력
+int c = 1;
+char* cnt; //counter
+char * toArray_cnt(int number)
+{
+  int i;
+  char *numberArray_cnt = calloc(c, sizeof(char));
+
+  i = c - 1;
+  while (i >= 0)
+  {
+    numberArray_cnt[i] = (number % 10) + '0';
+    --i;
+    number /= 10;
+  }
+  numberArray_cnt[c] = '\0';
+  return numberArray_cnt;
+}
 
 void rotary::rotary_setup()
 {
@@ -86,11 +104,17 @@ void rotary::rotary_loop()
     {
       counter = 500;
     }
-    if (counter <= 0)
+    if (counter <= 1)
     {
-      counter = 0;
+      counter = 1;
     }
     Serial.println(counter);
+    c = log10(counter) + 1;
+    cnt = toArray_cnt(counter);
+
+    LCDA.DisplayString(1, 1, "Cnt : ", 6);
+    LCDA.DisplayString(1, 6, cnt, c);
+    delete cnt;
   }
   aLastState = aState;
 }
@@ -101,10 +125,13 @@ rotary myro; //rotary class 객체 선언
 unsigned char daha[] = "DAHA SYSTEMS"; //
 unsigned char liquid[] = " Liquid Leak "; //
 unsigned char detect[] = "Detector"; //
+
 int n = 1;
 int m = 1;
+
 char* myc; //Max
 char* myd; //Min
+
 char * toArray_Max(int number)
 {
   int i;
@@ -155,18 +182,27 @@ void loop()
 {
   if (time + 100 < millis())
   {
+
     myro.rotary_loop();
   }
-  if (time + 200 < millis())
+  if (time + 300 < millis())
   {
+    
     time = millis();
+
     n = log10(Max) + 1;
     m = log10(Min) + 1;
+
     myc = toArray_Max(Max);
     myd = toArray_Min(Min);
+
+
     LCDA.DisplayString(2, 1, "Max : ", 6);
-    LCDA.DisplayString(2, 5, myc, n);
+    LCDA.DisplayString(2, 6, myc, n);
     LCDA.DisplayString(3, 1, "Min : ", 6);
-    LCDA.DisplayString(3, 5, myd, m);
+    LCDA.DisplayString(3, 6, myd, m);
+    
+    delete myc;
+    delete myd;
   }
 }
