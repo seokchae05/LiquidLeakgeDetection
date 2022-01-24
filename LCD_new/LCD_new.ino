@@ -1,5 +1,4 @@
-#include <Arduino_FreeRTOS.h>
-#include <semaphr.h>
+
 /*
   LCD  Arduino
   PIN1 = GND
@@ -15,43 +14,42 @@
 
 #define AR_SIZE( a ) sizeof( a ) / sizeof( a[0] )
 
+
+
+
 unsigned char daha[] = "DAHA SYSTEMS"; //
 
 unsigned char liquid[] = " Liquid Leak "; //
 
 unsigned char detect[] = "Detector"; //
 
-
-char* int2char(int x)
-{
-  int i = 0, j = 0;
-  int m[10];
-  char out[10];
-  do
-  {
-    m[i] = x % 10;
-    x = x/10;
-    i++;
-  } while( x != 0);
-  
-  for(;i>=0;i--)
-  {
-    out[j] = m[i] + '0';
-    j++;
-  }
-
-  return out;
-}
-
 int Min = 0 ;
 
 //String myString = String(0);
-int Max = 0;
-char* myc = int2char(Max);
+int Max = 500;
+int n = log10(Max) + 1;
+char* myc;
+
+char * toArray(int number)
+{
+    int i;
+    char *numberArray = calloc(n, sizeof(char));
+
+    i = n - 1;
+    while(i >= 0)
+    {
+      numberArray[i] = (number % 10) + '0';
+      --i;
+      number /= 10;
+    }
+    numberArray[n] = '\0';
+    return numberArray;
+}
 
 void setup()
 {
   Serial.begin(9600);
+  myc = toArray(Max);
   LCDA.Initialise(); // INIT SCREEN
   delay(100);
   LCDA.DisplayString(0, 1, liquid, 12); //
@@ -63,17 +61,9 @@ void setup()
 }
 void loop()
 {
-
-  LCDA.DisplayString(0,0, "CH01", 4);
-  LCDA.S
-  LCDA.DisplayString(1,0, "CH02", 4);
-  LCDA.DisplayString(2,0, "CH03", 4);
-  LCDA.DisplayString(3,0, "CH04", 4);
-  //delay(100);
+  delay(100);
 //  Serial.println("hello");
 //  Serial.println(myc);
 //  LCDA.DisplayString(0, 2, "sibal ", 8);
-//  LCDA.DisplayString(1, 2, myc, 16);
-
-  
+  LCDA.DisplayString(1, 2, myc, n);
 }
