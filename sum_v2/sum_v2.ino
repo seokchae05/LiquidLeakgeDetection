@@ -169,7 +169,7 @@ void compare()
 
   if (AIN2_V < Min || AIN2_V > Max && AIN0_V == 500 && AIN1_V == 500 && AIN3_V == 500)
   {
-    //Serial.println("CH3 알람 울림");
+    Serial.println("CH3 알람 울림");
     //digitalWrite(16, HIGH); //CH3 알람 울려라
     //delay(1000);
     //pinMode(29, INPUT);
@@ -195,6 +195,7 @@ void setup()
   Serial.begin(9600);
   Com.combine_setup();
   pin();
+  
   //Serial.println(A.adc2 * 0.1875 / 1000 * 100);
   //delay(5000);
 }

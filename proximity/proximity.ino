@@ -24,7 +24,7 @@ digitalWrite(ledPin, HIGH); //LED is turned on
 
 //collects data from an analog sensor
 
-int sensorPin = 13;                 // analog pin used to connect the sharp sensor
+int sensorPin = 9;                 // analog pin used to connect the sharp sensor
 int val = 0;               // variable to store the values from sensor(initially zero)
 int sda = 24;
 
