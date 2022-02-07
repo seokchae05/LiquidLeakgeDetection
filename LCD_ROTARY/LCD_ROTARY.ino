@@ -5,19 +5,24 @@
 #include "C:\Users\seokChae\Documents\Arduino\libraries\LCD12864RSPI\examples\LCD12864_test\DFrobot_char.h"
 #include <BfButton.h>
 #include <BfButtonManager.h>
+#include <EEPROM.h>
+
 
 Adafruit_ADS1115 ads1115;
 
 //ROTARY
-int Min = 1;
-int Max = 1;
+int Min = 250;
+int Max = 350;
+int remainN = 0;
+int remainX = 0;
 int D5 = 5; //D5번 핀을 사용 (SW)
 int D4 = 3; //D4번 핀을 사용 (DT)
 int D3 = 4; //D3번 핀을 사용 (CLK)
-int counter = 1; //rotary 회전 시 바뀜 (0~500까지의 값 설정)
+int counter = 100; //rotary 회전 시 바뀜 (0~500까지의 값 설정)
+int Reset = 13; //reset button
 
 //proximity
-int val = 0;               // variable to store the values from sensor(initially zero)
+int val = 0;
 
 BfButton btn(BfButton::STANDALONE_DIGITAL, D5, true, LOW);
 
@@ -27,26 +32,53 @@ void pressHandler(BfButton* btn, BfButton::press_pattern_t pattern)
   {
     case BfButton::SINGLE_PRESS: //min 저장
       Serial.println("Single push");
+      LCDA.CLEAR();
       Min = counter;
+      if (Min > 255) {
+        remainN = Min - 255;
+        EEPROM.write(98, remainN);
+        EEPROM.write(99, 255);
+      } else {
+        EEPROM.write(98, 0);
+        EEPROM.write(99, Min);
+      }
       Serial.print("Min : ");
       Serial.println(Min);
       break;
-
     case BfButton::DOUBLE_PRESS:
       Serial.println("DOUBLE push");
       counter = 1;
       Serial.println(counter);
       break;
-
     case BfButton::LONG_PRESS: //max 저장
       Serial.println("LONG push");
+      LCDA.CLEAR();
       Max = counter;
+      if (Max > 255) {
+        remainX = Max - 255;
+        EEPROM.write(100, remainX);
+        EEPROM.write(101, 255);
+      } else {
+        EEPROM.write(100, 0);
+        EEPROM.write(101, Max);
+      }
       Serial.print("Max : ");
       Serial.println(Max);
       break;
   }
 }
 
+void software_reset()
+{
+  Serial.println("Reset");
+  digitalWrite(14, LOW);
+  digitalWrite(15, LOW);
+  digitalWrite(16, LOW);
+  digitalWrite(17, LOW);
+}
+
+
+//ADS class
 class ADS
 {
   public:
@@ -57,32 +89,21 @@ class ADS
 };
 void ADS::ADS_setup()
 {
-  //Serial.println("Hello!");
-  //Serial.println("Getting single-ended readings from AIN0..3");
   ads1115.begin();
 
   //Gain을 조정하여 최대 6.144V의 전압에 대한 데이터를 출력하며, 1 bit당 0.1875mV의 전압으로 인식합니다.
   ads1115.setGain(GAIN_TWOTHIRDS);
-  //Serial.println("ADC Range: +/- 6.144V (1 bit = 0.1875mV)");
 }
 void ADS::ADS_loop()
 {
-  //각 채널의 입력 신호를 읽고 변수에 저장합니다.
-
+  //각 채널의 입력 신호를 읽고 변수에 저장
   adc0 = ads1115.readADC_SingleEnded(0);
   adc1 = ads1115.readADC_SingleEnded(1);
   adc2 = ads1115.readADC_SingleEnded(2);
   adc3 = ads1115.readADC_SingleEnded(3);
 
-
-  //adc4 = ads1115.readADC_SingleEnded(9);
-  //adc5 = ads1115.readADC_SingleEnded(5);
-  //adc6 = ads1115.readADC_SingleEnded(6);
-  //adc7 = ads1115.readADC_SingleEnded(7);
-
-  //각 채널에 입력된 신호의 데이터를 출력합니다.
-  //신호핀에 아무것도 연결되어 있지 않으면 의미 없는 값이 출력됩니다.
-  //
+  //각 채널에 입력된 신호의 데이터 출력
+  //신호핀에 아무것도 연결되어 있지 않으면 의미 없는 값 출력됨
   //  Serial.print("AIN0: "); Serial.println(adc0);
   //  Serial.print("AIN0 Voltage : "); Serial.println(adc0 * 0.1875 / 1000 * 100); //5V를 500으로 설정하고자 100 곱함!
   //  Serial.print("AIN1: "); Serial.println(adc1);
@@ -93,6 +114,9 @@ void ADS::ADS_loop()
   //  Serial.print("AIN3 Voltage : "); Serial.println(adc3 * 0.1875 / 1000 * 100);
   //  Serial.println(" ");
 }
+
+
+//rotary class
 class rotary
 {
   public:
@@ -102,6 +126,7 @@ class rotary
     void rotary_setup();
     void rotary_loop();
 };
+
 
 //counter LCD 출력
 int c = 1;
@@ -143,12 +168,10 @@ void rotary::rotary_loop()
     if (digitalRead(D4) != aState)
     {
       counter++;
-      angle++;
     }
     else
     {
       counter--;
-      angle--;
     }
     if (counter >= 500)
     {
@@ -159,18 +182,33 @@ void rotary::rotary_loop()
       counter = 1;
     }
     Serial.println(counter);
-    c = log10(counter) + 1;
-    cnt = toArray_cnt(counter);
 
-    LCDA.DisplayString(1, 1, "Cnt : ", 6);
-    LCDA.DisplayString(1, 6, cnt, c);
-    delete cnt;
+    if (counter == 99 || counter == 9) //자릿수 줄어들 때마다 0이 붙는 것을 방지하기 위함
+    {
+      LCDA.CLEAR();
+      c = log10(counter) + 1;
+      cnt = toArray_cnt(counter);
+      delay(10);
+      LCDA.DisplayString(1, 1, "Cnt : ", 6);
+      LCDA.DisplayString(1, 6, cnt, c);
+      delete cnt;
+    }
+    else
+    {
+      c = log10(counter) + 1;
+      cnt = toArray_cnt(counter);
+      delay(10);
+      LCDA.DisplayString(1, 1, "Cnt : ", 6);
+      LCDA.DisplayString(1, 6, cnt, c);
+      delete cnt;
+    }
   }
   aLastState = aState;
 }
 
 ADS myADS; //ADS class 객체 선언
 rotary myro; //rotary class 객체 선언
+
 
 //pinMode 설정
 void pin()
@@ -182,6 +220,7 @@ void pin()
   pinMode(9, INPUT); //proximity
 }
 
+
 //설정 범위와 측정값 비교 후 알람 울리기
 void compare()
 {
@@ -190,39 +229,59 @@ void compare()
   int AIN1_V = myADS.adc1 * 0.1875 / 1000 * 100;
   int AIN2_V = myADS.adc2 * 0.1875 / 1000 * 100;
   int AIN3_V = myADS.adc3 * 0.1875 / 1000 * 100;
-
+  long timenow = 0;
   if (AIN0_V < Min || AIN0_V > Max && AIN1_V == 500 && AIN2_V == 500 && AIN3_V == 500)
   {
-    if (Max != 1)
-    {
-      digitalWrite(14, HIGH); //CH1 알람 울려라
-      // delay(1000);
-    }
+    //    if 한번 더 프로시미트 스위치가 눌렸는지 :
+    //            //LCDA.CLEAR()
+    //LCD 첫번째 줄에서 CH1 산인지 염긴지
+    //             알람이 울리게
+    //              BREAK
+    //! 어차피 물리적 리셋 할거니까 while 문으로 해도 될듯
+    //    else continue
+
+
+
   }
+
   if (AIN1_V < Min || AIN1_V > Max && AIN0_V == 500 && AIN2_V == 500 && AIN3_V == 500)
   {
     if (Max != 1)
     {
-      digitalWrite(15, HIGH); //CH2 알람 울려라
+      //digitalWrite(15, HIGH); //CH2 알람 울려라
       // delay(1000);
     }
   }
 
   if (AIN2_V < Min || AIN2_V > Max && AIN0_V == 500 && AIN1_V == 500 && AIN3_V == 500)
   {
-    if (Max != 1)
+    timenow = millis();
+    if (millis() == timenow + 4000)
     {
-      Serial.println("CH3 알람 울림");
-      digitalWrite(16, HIGH); //CH3 알람 울려라
-      //delay(1000);
-      //pinMode(29, INPUT);
-      //SwitchState = digitalRead(29);
-      //if (SwitchState == HIGH)
-      //{
-      //  digitalWrite(16, LOW);
-      // digitalWrite(29, LOW);
-      //  break;
-      //}
+      Serial.println("인식 후 4초 지남");
+      if (val == 1)
+      {
+        if (AIN2_V < Min)
+        {
+          //LCD 첫번째 줄에 acid
+          LCDA.CLEAR();
+          LCDA.DisplayString(3, 1, "CH3 : ACID", 10);
+          digitalWrite(15, HIGH);
+          Serial.println("CH3 알람울림");
+        }
+        else if (AIN2_V > Max)
+        {
+          //LCD 첫번째 줄에 base
+          LCDA.CLEAR();
+          LCDA.DisplayString(3, 1, "CH3 : BASE", 10);
+          digitalWrite(15, HIGH);
+          Serial.println("CH3 알람울림");
+        }
+      }
+      if (val != 1)
+      {
+      }
+
     }
   }
 
@@ -230,25 +289,26 @@ void compare()
   {
     if (Max != 1)
     {
-      digitalWrite(17, HIGH); //CH4 알람 울려라8
+      //digitalWrite(17, HIGH); //CH4 알람 울려라8
       //delay(1000);
     }
   }
 }
 
-//LCD
+
+//LCD 초기 화면
 #define AR_SIZE( a ) sizeof( a ) / sizeof( a[0] )
-unsigned char daha[] = "DAHA SYSTEMS"; //
-unsigned char liquid[] = " Liquid Leak "; //
-unsigned char detect[] = "Detector"; //
+unsigned char daha[] = "DAHA SYSTEMS";
+unsigned char liquid[] = " Liquid Leak ";
+unsigned char detect[] = "Detector";
 
 int n = 1;
 int m = 1;
 
-char* myc; //Max
+char* myc; //Max값 char로 변환
 char* myd; //Min
 
-char * toArray_Max(int number)
+char * toArray_Max(int number) //숫자로 입력 시 LCD에 출력되지 않아서 char 형태로 변환
 {
   int i;
   char *numberArray_Max = calloc(n, sizeof(char));
@@ -279,30 +339,33 @@ char * toArray_Min(int number)
   return numberArray_Min;
 }
 
-long time = millis();
+long time = millis(); //수행 시간 측정
 
 void setup()
 {
   Serial.begin(9600);
   myro.rotary_setup();
-
   LCDA.Initialise(); // INIT SCREEN
   delay(100);
-  LCDA.DisplayString(0, 1, liquid, 12); //
-  LCDA.DisplayString(1, 2, detect, 10); //
-  LCDA.DisplayString(3, 1, daha, 12); //LOGO
+  LCDA.DisplayString(0, 1, liquid, 12);
+  LCDA.DisplayString(1, 2, detect, 10);
+  LCDA.DisplayString(3, 1, daha, 12);
   delay(5000);
   LCDA.CLEAR();//
   myADS.ADS_setup();
   pin();
+  Max = EEPROM.read(100) + EEPROM.read(101);  // Max값 저장해놓은 주소로부터 가져옴
+  Min = EEPROM.read(98) + EEPROM.read(99);
 }
 void loop()
 {
   val = digitalRead(9);
-  if (time + 100 < millis())
+  if (time  < millis())
   {
-
     myro.rotary_loop();
+    if (digitalRead(Reset) == HIGH){
+      software_reset();
+    }
   }
   if (time + 450 < millis())
   {
@@ -311,7 +374,6 @@ void loop()
 
     myc = toArray_Max(Max);
     myd = toArray_Min(Min);
-
 
     LCDA.DisplayString(2, 1, "Max : ", 6);
     LCDA.DisplayString(2, 6, myc, n);
