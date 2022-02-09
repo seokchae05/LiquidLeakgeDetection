@@ -23,6 +23,7 @@ int Reset = 13; //reset button
 
 //proximity
 int val = 0;
+int re_prox = 0;
 
 BfButton btn(BfButton::STANDALONE_DIGITAL, D5, true, LOW);
 
@@ -45,11 +46,13 @@ void pressHandler(BfButton* btn, BfButton::press_pattern_t pattern)
       Serial.print("Min : ");
       Serial.println(Min);
       break;
+
     case BfButton::DOUBLE_PRESS:
       Serial.println("DOUBLE push");
       counter = 1;
       Serial.println(counter);
       break;
+
     case BfButton::LONG_PRESS: //max 저장
       Serial.println("LONG push");
       LCDA.CLEAR();
@@ -58,7 +61,8 @@ void pressHandler(BfButton* btn, BfButton::press_pattern_t pattern)
         remainX = Max - 255;
         EEPROM.write(100, remainX);
         EEPROM.write(101, 255);
-      } else {
+      }
+      else {
         EEPROM.write(100, 0);
         EEPROM.write(101, Max);
       }
@@ -110,8 +114,8 @@ void ADS::ADS_loop()
   //  Serial.print("AIN1 Voltage : "); Serial.println(adc1 * 0.1875 / 1000 * 100);
   //  Serial.print("AIN2: "); Serial.println(adc2);
   //  Serial.print("AIN2 Voltage : "); Serial.println(adc2 * 0.1875 / 1000 * 100);
-  Serial.print("AIN3: "); Serial.println(adc3);
-  //  Serial.print("AIN3 Voltage : "); Serial.println(adc3 * 0.1875 / 1000 * 100);
+  //  Serial.print("AIN3: "); Serial.println(adc3);
+  Serial.print("AIN3 Voltage : "); Serial.println(adc3 * 0.1875 / 1000 * 100);
   //  Serial.println(" ");
 }
 
@@ -165,20 +169,16 @@ void rotary::rotary_loop()
 
   if (aState != aLastState)
   {
-    if (digitalRead(D4) != aState)
-    {
+    if (digitalRead(D4) != aState) {
       counter++;
     }
-    else
-    {
+    else {
       counter--;
     }
-    if (counter >= 500)
-    {
+    if (counter >= 500) {
       counter = 500;
     }
-    if (counter <= 1)
-    {
+    if (counter <= 1) {
       counter = 1;
     }
     Serial.println(counter);
@@ -220,7 +220,7 @@ void pin()
   pinMode(9, INPUT); //proximity
 }
 
-
+long time = millis(); //수행 시간 측정
 //설정 범위와 측정값 비교 후 알람 울리기
 void compare()
 {
@@ -232,165 +232,179 @@ void compare()
   long timenow = 0;
   if (AIN0_V < Min || AIN0_V > Max && AIN1_V == 500 && AIN2_V == 500 && AIN3_V == 500)
   {
-    //    if 한번 더 프로시미트 스위치가 눌렸는지 :
-    //            //LCDA.CLEAR()
-    //LCD 첫번째 줄에서 CH1 산인지 염긴지
-    //             알람이 울리게
-    //              BREAK
-    //! 어차피 물리적 리셋 할거니까 while 문으로 해도 될듯
-    //    else continue
-
-
-
-  }
-
-  if (AIN1_V < Min || AIN1_V > Max && AIN0_V == 500 && AIN2_V == 500 && AIN3_V == 500)
-  {
-    if (Max != 1)
+    delay(4000);
+    re_prox = digitalRead(9);
+    if (re_prox == 1)
     {
-      //digitalWrite(15, HIGH); //CH2 알람 울려라
-      // delay(1000);
+      Serial.println("prox 연결됨");
+      if (AIN0_V < Min)
+      {
+        //LCD 첫번째 줄에 acid
+        LCDA.CLEAR();
+        LCDA.DisplayString(1, 1, "CH1 : ACID", 10);
+        digitalWrite(15, HIGH);
+        Serial.println("CH1 알람울림_1");
+      }
+      else if (AIN0_V > Max)
+      {
+        //LCD 첫번째 줄에 base
+        LCDA.CLEAR();
+        LCDA.DisplayString(1, 1, "CH1 : BASE", 10);
+        digitalWrite(15, HIGH);
+        Serial.println("CH1 알람울림_2");
+      }
     }
   }
-
-  if (AIN2_V < Min || AIN2_V > Max && AIN0_V == 500 && AIN1_V == 500 && AIN3_V == 500)
-  {
-    timenow = millis();
-    if (millis() == timenow + 4000)
+    if (AIN1_V < Min || AIN1_V > Max && AIN0_V == 500 && AIN2_V == 500 && AIN3_V == 500)
     {
-      Serial.println("인식 후 4초 지남");
-      if (val == 1)
+      if (Max != 1)
       {
+        //digitalWrite(15, HIGH); //CH2 알람 울려라
+        // delay(1000);
+      }
+    }
+
+    if (AIN2_V < Min || AIN2_V > Max && AIN0_V == 500 && AIN1_V == 500 && AIN3_V == 500)
+    {
+      Serial.println("측정 저항값이 설정 범위 넘어감");
+      delay(4000);
+      re_prox = digitalRead(9);
+      Serial.println("인식 후 4초 지남");
+      if (re_prox == 1)
+      {
+        Serial.println("prox 연결됨");
         if (AIN2_V < Min)
         {
           //LCD 첫번째 줄에 acid
           LCDA.CLEAR();
-          LCDA.DisplayString(3, 1, "CH3 : ACID", 10);
+          LCDA.DisplayString(3, 1, "CH3 : ACID", 12);
           digitalWrite(15, HIGH);
-          Serial.println("CH3 알람울림");
+          Serial.println("CH3 알람울림_1");
         }
         else if (AIN2_V > Max)
         {
           //LCD 첫번째 줄에 base
           LCDA.CLEAR();
-          LCDA.DisplayString(3, 1, "CH3 : BASE", 10);
+          LCDA.DisplayString(3, 1, "CH3 : BASE", 12);
           digitalWrite(15, HIGH);
-          Serial.println("CH3 알람울림");
+          Serial.println("CH3 알람울림_2");
         }
       }
-      if (val != 1)
+    }
+
+    if (AIN3_V < Min || AIN3_V > Max && AIN0_V == 500 && AIN1_V == 500 && AIN2_V == 500)
+    {
+      if (Max != 1)
       {
+        //digitalWrite(17, HIGH); //CH4 알람 울려라8
+        //delay(1000);
       }
-
     }
   }
 
-  if (AIN3_V < Min || AIN3_V > Max && AIN0_V == 500 && AIN1_V == 500 && AIN2_V == 500)
-  {
-    if (Max != 1)
-    {
-      //digitalWrite(17, HIGH); //CH4 알람 울려라8
-      //delay(1000);
-    }
-  }
-}
 
-
-//LCD 초기 화면
+  //LCD 초기 화면
 #define AR_SIZE( a ) sizeof( a ) / sizeof( a[0] )
-unsigned char daha[] = "DAHA SYSTEMS";
-unsigned char liquid[] = " Liquid Leak ";
-unsigned char detect[] = "Detector";
+  unsigned char daha[] = "DAHA SYSTEMS";
+  unsigned char liquid[] = " Liquid Leak ";
+  unsigned char detect[] = "Detector";
+  int n = 1;
+  int m = 1;
+  char* myc; //Max값 char로 변환
+  char* myd; //Min
 
-int n = 1;
-int m = 1;
-
-char* myc; //Max값 char로 변환
-char* myd; //Min
-
-char * toArray_Max(int number) //숫자로 입력 시 LCD에 출력되지 않아서 char 형태로 변환
-{
-  int i;
-  char *numberArray_Max = calloc(n, sizeof(char));
-
-  i = n - 1;
-  while (i >= 0)
+  char * toArray_Max(int number) //숫자로 입력 시 LCD에 출력되지 않아서 char 형태로 변환
   {
-    numberArray_Max[i] = (number % 10) + '0';
-    --i;
-    number /= 10;
-  }
-  numberArray_Max[n] = '\0';
-  return numberArray_Max;
-}
-char * toArray_Min(int number)
-{
-  int i;
-  char *numberArray_Min = calloc(m, sizeof(char));
+    int i;
+    char *numberArray_Max = calloc(n, sizeof(char));
 
-  i = m - 1;
-  while (i >= 0)
-  {
-    numberArray_Min[i] = (number % 10) + '0';
-    --i;
-    number /= 10;
-  }
-  numberArray_Min[m] = '\0';
-  return numberArray_Min;
-}
-
-long time = millis(); //수행 시간 측정
-
-void setup()
-{
-  Serial.begin(9600);
-  myro.rotary_setup();
-  LCDA.Initialise(); // INIT SCREEN
-  delay(100);
-  LCDA.DisplayString(0, 1, liquid, 12);
-  LCDA.DisplayString(1, 2, detect, 10);
-  LCDA.DisplayString(3, 1, daha, 12);
-  delay(5000);
-  LCDA.CLEAR();//
-  myADS.ADS_setup();
-  pin();
-  Max = EEPROM.read(100) + EEPROM.read(101);  // Max값 저장해놓은 주소로부터 가져옴
-  Min = EEPROM.read(98) + EEPROM.read(99);
-}
-void loop()
-{
-  val = digitalRead(9);
-  if (time  < millis())
-  {
-    myro.rotary_loop();
-    if (digitalRead(Reset) == HIGH){
-      software_reset();
-    }
-  }
-  if (time + 450 < millis())
-  {
-    n = log10(Max) + 1;
-    m = log10(Min) + 1;
-
-    myc = toArray_Max(Max);
-    myd = toArray_Min(Min);
-
-    LCDA.DisplayString(2, 1, "Max : ", 6);
-    LCDA.DisplayString(2, 6, myc, n);
-    LCDA.DisplayString(3, 1, "Min : ", 6);
-    LCDA.DisplayString(3, 6, myd, m);
-
-    delete myc;
-    delete myd;
-  }
-  if (time + 700 < millis())
-  {
-    time = millis();
-    if (val == 1) // prox가 1이면 실행 되게
+    i = n - 1;
+    while (i >= 0)
     {
-      myADS.ADS_loop();
-      Serial.println("prox 실행됨");
-      compare();
+      numberArray_Max[i] = (number % 10) + '0';
+      --i;
+      number /= 10;
+    }
+    numberArray_Max[n] = '\0';
+    return numberArray_Max;
+  }
+  char * toArray_Min(int number)
+  {
+    int i;
+    char *numberArray_Min = calloc(m, sizeof(char));
+
+    i = m - 1;
+    while (i >= 0)
+    {
+      numberArray_Min[i] = (number % 10) + '0';
+      --i;
+      number /= 10;
+    }
+    numberArray_Min[m] = '\0';
+    return numberArray_Min;
+  }
+
+
+
+  void setup()
+  {
+    Serial.begin(9600);
+    myro.rotary_setup();
+    LCDA.Initialise(); // INIT SCREEN
+    delay(100);
+    LCDA.DisplayString(0, 1, liquid, 12);
+    LCDA.DisplayString(1, 2, detect, 10);
+    LCDA.DisplayString(3, 1, daha, 12);
+    delay(5000);
+    LCDA.CLEAR();
+    myADS.ADS_setup();
+    pin();
+    Max = EEPROM.read(100) + EEPROM.read(101);  // Max값 저장해놓은 주소로부터 가져옴
+    Min = EEPROM.read(98) + EEPROM.read(99);
+  }
+  void loop()
+  {
+    Serial.println("여기서부터");
+    Serial.println(time);
+    Serial.println(millis());
+    //delay(1000);
+    val = digitalRead(9);
+    if (time < millis())
+    {
+      myro.rotary_loop();
+      if (digitalRead(Reset) == HIGH)
+      {
+        software_reset();
+      }
+      Serial.println("1");
+    }
+    if (time + 350 < millis())
+    {
+      n = log10(Max) + 1;
+      m = log10(Min) + 1;
+
+      myc = toArray_Max(Max);
+      myd = toArray_Min(Min);
+
+      LCDA.DisplayString(2, 1, "Max : ", 6);
+      LCDA.DisplayString(2, 6, myc, n);
+      LCDA.DisplayString(3, 1, "Min : ", 6);
+      LCDA.DisplayString(3, 6, myd, m);
+
+      delete myc;
+      delete myd;
+      Serial.println("2");
+    }
+    if (time + 500 < millis())
+    {
+
+      if (val == 1) // prox가 1이면 실행 되게
+      {
+        myADS.ADS_loop(); //저항 읽음
+
+        Serial.println("prox 실행됨");
+        compare();
+      }
+      Serial.println("3");
     }
   }
-}
